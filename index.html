@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Photo Flappy Game</title>
+<meta charset="utf-8" />
+<style>
+    body {
+        margin: 0;
+        text-align: center;
+        background: #87ceeb;
+        font-family: Arial, sans-serif;
+    }
+
+    #startImage, .choiceImage {
+        cursor: pointer;
+    }
+
+    #characterSelection {
+        display: none;
+        margin-top: 20px;
+    }
+
+    #gameCanvas {
+        display: none;
+        margin: 20px auto;
+        background: #87ceeb;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    #gameOver {
+        display: none;
+        position: fixed;
+        left: 0; top: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+    }
+
+    #gameOver .box {
+        background: #222;
+        padding: 25px;
+        border-radius: 10px;
+    }
+</style>
+</head>
+<body>
+
+<!-- START IMAGE -->
+<img id="startImage" src="assetsstart.png" width="300">
+
+<!-- CHARACTER SELECTION -->
+<div id="characterSelection">
+    <h2>Select Character</h2>
+
+    <img class="choiceImage" src="assetspic1.png" width="120" data-id="1">
+    <img class="choiceImage" src="assetspic2.png" width="120" data-id="2">
+    <img class="choiceImage" src="assetspic3.png" width="120" data-id="3">
+    <img class="choiceImage" src="assetspic4.png" width="120" data-id="4">
+    <img class="choiceImage" src="assetspic5.png" width="120" data-id="5">
+</div>
+
+<!-- GAME CANVAS -->
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+
+<!-- GAME OVER -->
+<div id="gameOver">
+    <div class="box">
+        <h2>Game Over</h2>
+        <p id="finalScore">Score: 0</p>
+        <button id="restartBtn">Restart</button>
+    </div>
+</div>
+
+<!-- SOUNDS -->
+<audio id="startSound" src="assetsstart.mp3"></audio>
+
+<audio id="tap1" src="assetstap1.mp3"></audio>
+<audio id="tap2" src="assetstap2.mp3"></audio>
+<audio id="tap3" src="assetstap3.mp3"></audio>
+<audio id="tap4" src="assetstap4.mp3"></audio>
+<audio id="tap5" src="assetstap5.mp3"></audio>
+
+<audio id="fail1" src="assetsfail1.mp3"></audio>
+<audio id="fail2" src="assetsfail2.mp3"></audio>
+<audio id="fail3" src="assetsfail3.mp3"></audio>
+<audio id="fail4" src="assetsfail4.mp3"></audio>
+<audio id="fail5" src="assetsfail5.mp3"></audio>
+
+<script>
+// STOP all sounds before new sound
+function stopAllSounds() {
+    document.querySelectorAll("audio").forEach(a => {
+        a.pause();
+        a.currentTime = 0;
+    });
+}
+
+// GLOBAL VARIABLES
+const startImage = document.getElementById("startImage");
+const characterSelection = document.getElementById("characterSelection");
+const gameCanvas = document.getElementById("gameCanvas");
+const ctx = gameCanvas.getContext("2d");
+
+let selectedCharacter = "";
+let selectedTapSound = "";
+let selectedFailSound = "";
+let characterImg = new Image();
+
+let x = 50;
+let y = 300;
+let gravity = 0.50;
+let velocity = 0;
+let score = 0;
+let gameRunning = false;
+
+// Pipes
+let pipes = [];
+let pipeGap = 150;
+let pipeWidth = 60;
+let pipeSpeed = 2;
+
+// START IMAGE CLICK
+startImage.onclick = () => {
+    stopAllSounds();
+    document.getElementById("startSound").play();
+    startImage.style.display = "none";
+    characterSelection.style.display = "block";
+};
+
+// CHARACTER SELECT (WAIT FOR AUDIO END BEFORE GAME STARTS)
+document.querySelectorAll(".choiceImage").forEach(img => {
+    img.onclick = (event) => {
+        event.stopPropagation();
+
+        const id = img.dataset.id;
+
+        selectedCharacter = "assetspic" + id + ".png";
+        selectedTapSound = "tap" + id;
+        selectedFailSound = "fail" + id;
+
+        stopAllSounds();
+        const audio = document.getElementById(selectedTapSound);
+        audio.play();
+
+        characterImg.src = selectedCharacter;
+
+        // 🚀 START GAME ONLY AFTER AUDIO FINISHES
+        audio.onended = () => {
+            characterSelection.style.display = "none";
+            startGame();
+        };
+    };
+});
+
+// RESET GAME STATE
+function resetGame() {
+    x = 50;
+    y = 300;
+    velocity = 0;
+    score = 0;
+    pipes = [];
+    makePipe();
+}
+
+// START GAME (Pipes appear after tap audio completed)
+function startGame() {
+    gameCanvas.style.display = "block";
+    resetGame();
+    gameRunning = true;
+
+    gameCanvas.addEventListener("click", jump);
+
+    loop();
+}
+
+// JUMP
+function jump() {
+    velocity = -8;
+    stopAllSounds();
+    document.getElementById(selectedTapSound).play();
+}
+
+// CREATE PIPE
+function makePipe() {
+    let topHeight = Math.random() * 250 + 50;
+    let bottomY = topHeight + pipeGap;
+
+    pipes.push({
+        x: gameCanvas.width,
+        topHeight: topHeight,
+        bottomY: bottomY
+    });
+}
+
+// UPDATE GAME
+function update() {
+    velocity += gravity;
+    y += velocity;
+
+    // Move pipes
+    pipes.forEach(pipe => pipe.x -= pipeSpeed);
+
+    // Remove off-screen pipes
+    if (pipes[0].x < -pipeWidth) {
+        pipes.shift();
+        score++;
+    }
+
+    // Add new pipe
+    if (pipes[pipes.length - 1].x < 150) {
+        makePipe();
+    }
+
+    // COLLISION
+    for (let pipe of pipes) {
+        let hitX = x + 60 > pipe.x && x < pipe.x + pipeWidth;
+        if (hitX) {
+            if (y < pipe.topHeight || y + 60 > pipe.bottomY) {
+                gameOver();
+            }
+        }
+    }
+
+    // Ground hit
+    if (y > gameCanvas.height - 60) gameOver();
+}
+
+// DRAW ON SCREEN
+function draw() {
+    ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+    // character
+    ctx.drawImage(characterImg, x, y, 60, 60);
+
+    // pipes
+    ctx.fillStyle = "green";
+    pipes.forEach(pipe => {
+        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+        ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, gameCanvas.height - pipe.bottomY);
+    });
+
+    // score
+    ctx.fillStyle = "black";
+    ctx.font = "22px Arial";
+    ctx.fillText("Score: " + score, 10, 25);
+}
+
+// LOOP
+function loop() {
+    if (!gameRunning) return;
+
+    requestAnimationFrame(loop);
+
+    update();
+    draw();
+}
+
+// GAME OVER
+function gameOver() {
+    gameRunning = false;
+
+    stopAllSounds();
+    document.getElementById(selectedFailSound).play();
+
+    document.getElementById("finalScore").innerText = "Score: " + score;
+    document.getElementById("gameOver").style.display = "flex";
+}
+
+// RESTART
+document.getElementById("restartBtn").onclick = () => {
+    document.getElementById("gameOver").style.display = "none";
+    startGame();
+};
+</script>
+
+</body>
+</html>
