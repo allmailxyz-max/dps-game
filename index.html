@@ -3,14 +3,69 @@
 <head>
 <meta charset="utf-8" />
 <title>Photo Flappy Game — Ultimate Edition</title>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Q0P2DHTG3C"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-Q0P2DHTG3C');
+</script>
+
 <style>
   body { margin:0; text-align:center; background:#87ceeb; font-family:Arial, sans-serif; overflow: hidden; }
-  #startImage, .choiceImage { cursor:pointer; transition: transform 0.1s; }
+  
+  /* --- PASSWORD SCREEN STYLES --- */
+  #passwordOverlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: #87ceeb;
+    z-index: 99999; /* On top of everything */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+  }
+  #loginBox {
+    background: white;
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    text-align: center;
+    width: 300px;
+  }
+  #passInput {
+    padding: 10px;
+    width: 80%;
+    font-size: 16px;
+    margin-bottom: 15px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    outline: none;
+  }
+  #passInput:focus { border-color: #ff9800; }
+  #loginBtn {
+    padding: 10px 25px;
+    background: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  #loginBtn:hover { background: #e68900; }
+  #loginError { color: red; margin-top: 10px; display: none; font-size: 14px; }
+
+  /* --- GAME STYLES --- */
+  /* IMPORTANT: startImage is hidden by default, shown only after password */
+  #startImage { cursor:pointer; transition: transform 0.1s; display: none; margin-top: 50px; }
+  #startText { display: none; }
+
+  .choiceImage { cursor:pointer; transition: transform 0.1s; }
   .choiceImage:hover { transform: scale(1.1); }
-  
+   
   #characterSelection { display:none; margin-top:20px; }
-  
-  /* Added a glow to the canvas */
+   
   #gameCanvas { 
     display:none; 
     margin:20px auto 10px auto; 
@@ -18,14 +73,14 @@
     border-radius:10px; 
     box-shadow:0 0 20px rgba(0,0,0,0.4); 
   }
-  
+   
   #gameOver { display:none; position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.6); color:#fff; align-items:center; justify-content:center; z-index:20; backdrop-filter: blur(4px); }
   #gameOver .box { background: linear-gradient(135deg, #222, #444); padding:30px; border-radius:15px; text-align:center; border: 2px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-  
+   
   #backBtnGame { display:none; position:fixed; top:10px; left:10px; background:#222; color:#fff; padding:10px 15px; border-radius:6px; cursor:pointer; z-index:50; font-size:16px; border: 1px solid #555; }
   #backBtnOver { margin-top:15px; padding:10px 20px; background:#444; color:white; border-radius:6px; cursor:pointer; border: 1px solid #777; }
   #restartBtn { padding: 10px 20px; font-size: 18px; background: #ff9800; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 10px; }
-  
+   
   #hud { position:fixed; top:10px; right:10px; background:rgba(255,255,255,0.9); padding:8px 15px; border-radius:20px; font-weight:bold; z-index:40; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border: 2px solid #333; }
   #difficultyControls { margin:12px 0; }
   .difficulty { margin:0 8px; cursor:pointer; }
@@ -53,7 +108,7 @@
     box-shadow: 0 2px #bf360c;
     background: #d84315;
   }
-  
+   
   /* Ghost Mode Indicator */
   #ghostStatus {
     display: none;
@@ -72,6 +127,17 @@
 </style>
 </head>
 <body>
+
+<div id="passwordOverlay">
+  <div id="loginBox">
+    <h2 style="color:#333; margin-top:0;">Protected Area</h2>
+    <p style="color:#666; font-size:14px;">Please enter password to play</p>
+    <input type="password" id="passInput" placeholder="Password">
+    <br>
+    <button id="loginBtn" onclick="checkPassword()">ENTER</button>
+    <p id="loginError">Incorrect Password!</p>
+  </div>
+</div>
 
 <img id="startImage" src="assetsstart.png" width="300" alt="start">
 <p id="startText" style="font-size:20px; margin-top:10px; color:#222; font-weight:bold;">
@@ -132,7 +198,44 @@
 <audio id="fail5" src="assetsfail5.mp3"></audio>
 
 <audio id="coinSound" src="assetscoin.mp3"></audio>
+
+<div style="position:fixed;left:0;right:0;bottom:8px;text-align:center;z-index:99990;color:rgba(0,0,0,0.55);font-weight:900;font-size:20px;pointer-events:none;">
+    ✦ Made by DPS Society ✦
+</div>
+
 <script>
+/* ---------------------------
+   PASSWORD PROTECTION LOGIC
+   --------------------------- */
+function checkPassword() {
+    const input = document.getElementById("passInput").value;
+    const errorMsg = document.getElementById("loginError");
+    const overlay = document.getElementById("passwordOverlay");
+    const startImg = document.getElementById("startImage");
+    const startTxt = document.getElementById("startText");
+
+    // 👇 CHANGE YOUR PASSWORD HERE 👇
+    const correctPassword = "DPS"; 
+
+    if (input === correctPassword) {
+        overlay.style.display = "none"; // Hide login
+        startImg.style.display = "inline"; // Show game start
+        startTxt.style.display = "block"; // Show text
+    } else {
+        errorMsg.style.display = "block";
+        document.getElementById("passInput").value = ""; // Clear input
+    }
+}
+
+// Allow pressing "Enter" key to submit password
+document.getElementById("passInput").addEventListener("keypress", function(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    checkPassword();
+  }
+});
+
+
 /* ---------------------------
    Utilities & Globals
    --------------------------- */
@@ -236,6 +339,7 @@ startImage.onclick = () => {
   stopAllSounds();
   document.getElementById("startSound").play().catch(()=>{});
   startImage.style.display = "none";
+  document.getElementById("startText").style.display = "none";
   characterSelection.style.display = "block";
 };
 
@@ -341,13 +445,13 @@ function makePipe() {
   // 15% Chance to spawn Ghost Powerup, otherwise Coin
   let rng = Math.random();
   if (rng < 0.15) {
-     // Spawn Ghost Orb
-     let itemY = topHeight + 30 + Math.random() * (pipeGap - 60);
-     powerups.push({ x: gameCanvas.width + 60, y: itemY, collected:false, type:'ghost' });
+      // Spawn Ghost Orb
+      let itemY = topHeight + 30 + Math.random() * (pipeGap - 60);
+      powerups.push({ x: gameCanvas.width + 60, y: itemY, collected:false, type:'ghost' });
   } else if (rng < 0.8) {
-     // Spawn Coin
-     let coinY = topHeight + 30 + Math.random() * (pipeGap - 60);
-     coins.push({ x: gameCanvas.width + 60, y: coinY, collected:false });
+      // Spawn Coin
+      let coinY = topHeight + 30 + Math.random() * (pipeGap - 60);
+      coins.push({ x: gameCanvas.width + 60, y: coinY, collected:false });
   }
 }
 
@@ -676,36 +780,5 @@ backBtnOver.onclick = () => {
 
 gameCanvas.tabIndex = 1000;
 </script>
-<div style="position:fixed;left:0;right:0;bottom:8px;text-align:center;z-index:99999;color:rgba(0,0,0,0.55);font-weight:900;font-size:20px;pointer-events:none;">
-    ✦ Made by DPS Society ✦
-</div>
-<head>
-  <meta charset="UTF-8">
 </body>
-<!-- ✅ Google Analytics MUST be inside the first <head> -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-Q0P2DHTG3C"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-Q0P2DHTG3C');
-</script>
-
-<style>
-/* YOUR FULL CSS (unchanged) */
-body { margin:0; text-align:center; background:#87ceeb; font-family:Arial, sans-serif; overflow: hidden; }
-#startImage, .choiceImage { cursor:pointer; transition: transform 0.1s; }
-/* ⭐ Rest CSS untouched */
-... (your full CSS stays SAME)
-</style>
-
-</head>
-
 </html>
-
-
-
-
-
-
-
