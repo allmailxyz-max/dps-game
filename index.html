@@ -57,7 +57,6 @@
   #loginError { color: red; margin-top: 10px; display: none; font-size: 14px; }
 
   /* --- GAME STYLES --- */
-  /* IMPORTANT: startImage is hidden by default, shown only after password */
   #startImage { cursor:pointer; transition: transform 0.1s; display: none; margin-top: 50px; }
   #startText { display: none; }
 
@@ -214,8 +213,8 @@ function checkPassword() {
     const startImg = document.getElementById("startImage");
     const startTxt = document.getElementById("startText");
 
-    // 👇 CHANGE YOUR PASSWORD HERE 👇
-    const correctPassword = "DPS"; 
+    // 👇 UPDATED PASSWORD HERE 👇
+    const correctPassword = "dps ki maa ka"; 
 
     if (input === correctPassword) {
         overlay.style.display = "none"; // Hide login
@@ -234,7 +233,6 @@ document.getElementById("passInput").addEventListener("keypress", function(event
     checkPassword();
   }
 });
-
 
 /* ---------------------------
    Utilities & Globals
