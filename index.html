@@ -308,7 +308,7 @@ function startGame() {
 
 function jump() {
   if (!gameRunning) return;
-  velocity = -5.5;
+  velocity = -7.5;
   stopAllSounds();
   const tap = document.getElementById(selectedTapSound);
   if (tap) tap.play().catch(()=>{});
@@ -682,5 +682,6 @@ gameCanvas.tabIndex = 1000;
 
 </body>
 </html>
+
 
 
