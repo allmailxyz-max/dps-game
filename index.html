@@ -1,80 +1,67 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Photo Flappy Game</title>
 <meta charset="utf-8" />
+<title>Photo Flappy Game — Enhanced</title>
 <style>
-    body {
-        margin: 0;
-        text-align: center;
-        background: #87ceeb;
-        font-family: Arial, sans-serif;
-    }
-
-    #startImage, .choiceImage {
-        cursor: pointer;
-    }
-
-    #characterSelection {
-        display: none;
-        margin-top: 20px;
-    }
-
-    #gameCanvas {
-        display: none;
-        margin: 20px auto;
-        background: #87ceeb;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-
-    #gameOver {
-        display: none;
-        position: fixed;
-        left: 0; top: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.6);
-        color: #fff;
-        align-items: center;
-        justify-content: center;
-        z-index: 20;
-    }
-
-    #gameOver .box {
-        background: #222;
-        padding: 25px;
-        border-radius: 10px;
-    }
+  body { margin:0; text-align:center; background:#87ceeb; font-family:Arial, sans-serif; }
+  #startImage, .choiceImage { cursor:pointer; }
+  #characterSelection { display:none; margin-top:20px; }
+  #gameCanvas { display:none; margin:20px auto; background:#87ceeb; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.3); }
+  #gameOver { display:none; position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.6); color:#fff; align-items:center; justify-content:center; z-index:20; }
+  #gameOver .box { background:#222; padding:25px; border-radius:10px; text-align:center; }
+  #backBtnGame { display:none; position:fixed; top:10px; left:10px; background:#222; color:#fff; padding:10px 15px; border-radius:6px; cursor:pointer; z-index:50; font-size:16px; }
+  #backBtnOver { margin-top:12px; padding:8px 15px; background:#444; color:white; border-radius:6px; cursor:pointer; }
+  #hud { position:fixed; top:10px; right:10px; background:rgba(255,255,255,0.8); padding:6px 10px; border-radius:6px; font-weight:bold; z-index:40; }
+  #difficultyControls { margin:12px 0; }
+  .difficulty { margin:0 8px; cursor:pointer; }
 </style>
 </head>
 <body>
 
-<!-- START IMAGE -->
-<img id="startImage" src="assetsstart.png" width="300">
+<!-- START -->
+<img id="startImage" src="assetsstart.png" width="300" alt="start">
 
-<!-- CHARACTER SELECTION -->
+<!-- CHARACTER SELECT + Difficulty -->
 <div id="characterSelection">
-    <h2>Select Character</h2>
-
+  <h2>Select Character</h2>
+  <div id="choices">
     <img class="choiceImage" src="assetspic1.png" width="120" data-id="1">
     <img class="choiceImage" src="assetspic2.png" width="120" data-id="2">
     <img class="choiceImage" src="assetspic3.png" width="120" data-id="3">
     <img class="choiceImage" src="assetspic4.png" width="120" data-id="4">
     <img class="choiceImage" src="assetspic5.png" width="120" data-id="5">
+  </div>
+
+  <div id="difficultyControls">
+    <span>Difficulty:</span>
+    <label class="difficulty"><input type="radio" name="difficulty" value="easy" checked> Easy</label>
+    <label class="difficulty"><input type="radio" name="difficulty" value="medium"> Medium</label>
+    <label class="difficulty"><input type="radio" name="difficulty" value="hard"> Hard</label>
+  </div>
+  <p style="font-size:14px;color:#333">(Pipes will appear only after character sound finishes)</p>
 </div>
 
-<!-- GAME CANVAS -->
+<!-- Back button in-game -->
+<div id="backBtnGame">⬅ Back</div>
+
+<!-- Canvas -->
 <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+<!-- HUD -->
+<div id="hud" aria-live="polite">Score: 0 | Coins: 0 | Level: Easy</div>
 
 <!-- GAME OVER -->
 <div id="gameOver">
-    <div class="box">
-        <h2>Game Over</h2>
-        <p id="finalScore">Score: 0</p>
-        <button id="restartBtn">Restart</button>
-    </div>
+  <div class="box">
+    <h2>Game Over</h2>
+    <p id="finalScore">Score: 0</p>
+    <button id="restartBtn">Restart</button>
+    <div id="backBtnOver">⬅ Back</div>
+  </div>
 </div>
 
-<!-- SOUNDS -->
+<!-- SOUNDS (no slashes in filenames) -->
 <audio id="startSound" src="assetsstart.mp3"></audio>
 
 <audio id="tap1" src="assetstap1.mp3"></audio>
@@ -89,192 +76,435 @@
 <audio id="fail4" src="assetsfail4.mp3"></audio>
 <audio id="fail5" src="assetsfail5.mp3"></audio>
 
+<audio id="coinSound" src="assetscoin.mp3"></audio>
+
 <script>
-// STOP all sounds before new sound
+/* ---------------------------
+   Utilities & Globals
+   --------------------------- */
 function stopAllSounds() {
-    document.querySelectorAll("audio").forEach(a => {
-        a.pause();
-        a.currentTime = 0;
-    });
+  document.querySelectorAll("audio").forEach(a => { a.pause(); a.currentTime = 0; });
 }
 
-// GLOBAL VARIABLES
 const startImage = document.getElementById("startImage");
 const characterSelection = document.getElementById("characterSelection");
 const gameCanvas = document.getElementById("gameCanvas");
 const ctx = gameCanvas.getContext("2d");
+const backBtnGame = document.getElementById("backBtnGame");
+const backBtnOver = document.getElementById("backBtnOver");
+const hud = document.getElementById("hud");
 
 let selectedCharacter = "";
 let selectedTapSound = "";
 let selectedFailSound = "";
 let characterImg = new Image();
 
-let x = 50;
-let y = 300;
-let gravity = 0.50;
-let velocity = 0;
-let score = 0;
+let x = 50, y = 300;
+let gravity = 0.45, velocity = 0;
+let baseScore = 0, coinCount = 0;
 let gameRunning = false;
 
-// Pipes
 let pipes = [];
 let pipeGap = 150;
 let pipeWidth = 60;
 let pipeSpeed = 2;
 
-// START IMAGE CLICK
-startImage.onclick = () => {
-    stopAllSounds();
-    document.getElementById("startSound").play();
-    startImage.style.display = "none";
-    characterSelection.style.display = "block";
+let coins = []; // coins on screen
+let coinRadius = 12;
+
+let levelName = 'Easy'; // Easy/Medium/Hard
+let difficultySetting = 'easy'; // current selection
+
+// background scroll params
+let bgOffset1 = 0, bgOffset2 = 0;
+
+/* Difficulty presets */
+const DIFFICULTY = {
+  easy:   {pipeSpeed: 2, gap: 160},
+  medium: {pipeSpeed: 2.6, gap: 135},
+  hard:   {pipeSpeed: 3.2, gap: 115}
 };
 
-// CHARACTER SELECT (WAIT FOR AUDIO END BEFORE GAME STARTS)
-document.querySelectorAll(".choiceImage").forEach(img => {
-    img.onclick = (event) => {
-        event.stopPropagation();
+/* ---------------------------
+   Background (parallax) draw
+   --------------------------- */
+function drawBackground(dt) {
+  // layer1: far clouds (slower)
+  bgOffset1 -= 0.2 * pipeSpeed;
+  bgOffset2 -= 0.6 * pipeSpeed;
 
-        const id = img.dataset.id;
+  // keep offsets bounded
+  if (bgOffset1 < -gameCanvas.width) bgOffset1 += gameCanvas.width;
+  if (bgOffset2 < -gameCanvas.width) bgOffset2 += gameCanvas.width;
 
-        selectedCharacter = "assetspic" + id + ".png";
-        selectedTapSound = "tap" + id;
-        selectedFailSound = "fail" + id;
+  // sky already set by canvas background color; draw simple cloud shapes
+  ctx.fillStyle = "#bfe9ff";
+  for (let i = 0; i < 4; i++) {
+    let cx = ((i * 220) + bgOffset1) % (gameCanvas.width + 240) - 120;
+    drawCloud(cx, 100, 40);
+  }
 
-        stopAllSounds();
-        const audio = document.getElementById(selectedTapSound);
-        audio.play();
+  ctx.globalAlpha = 0.6;
+  for (let i = 0; i < 5; i++) {
+    let cx = ((i * 160) + bgOffset2) % (gameCanvas.width + 200) - 100;
+    drawCloud(cx, 60 + (i%2)*30, 28);
+  }
+  ctx.globalAlpha = 1.0;
+}
 
-        characterImg.src = selectedCharacter;
+function drawCloud(cx, cy, r) {
+  ctx.beginPath();
+  ctx.fillStyle = "#ffffff";
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.arc(cx + r*0.9, cy + 5, r*0.8, 0, Math.PI*2);
+  ctx.arc(cx - r*0.9, cy + 5, r*0.8, 0, Math.PI*2);
+  ctx.fill();
+}
 
-        // 🚀 START GAME ONLY AFTER AUDIO FINISHES
-        audio.onended = () => {
-            characterSelection.style.display = "none";
-            startGame();
-        };
-    };
+/* ---------------------------
+   Start screen
+   --------------------------- */
+startImage.onclick = () => {
+  stopAllSounds();
+  document.getElementById("startSound").play().catch(()=>{});
+  startImage.style.display = "none";
+  characterSelection.style.display = "block";
+};
+
+/* Difficulty radio handler */
+document.querySelectorAll('input[name="difficulty"]').forEach(r => {
+  r.addEventListener("change", e => {
+    difficultySetting = e.target.value;
+    levelName = (difficultySetting === 'easy')? 'Easy' : (difficultySetting === 'medium')? 'Medium' : 'Hard';
+    hud.textContent = `Score: ${baseScore} | Coins: ${coinCount} | Level: ${levelName}`;
+  });
 });
 
-// RESET GAME STATE
-function resetGame() {
-    x = 50;
-    y = 300;
-    velocity = 0;
-    score = 0;
-    pipes = [];
-    makePipe();
+/* ---------------------------
+   Character selection
+   Wait for tap audio to finish, then start game
+   --------------------------- */
+document.querySelectorAll(".choiceImage").forEach(img => {
+  img.onclick = (event) => {
+    event.stopPropagation();
+    const id = img.dataset.id;
+    selectedCharacter = "assetspic" + id + ".png";
+    selectedTapSound = "tap" + id;
+    selectedFailSound = "fail" + id;
+
+    stopAllSounds();
+    const audio = document.getElementById(selectedTapSound);
+    audio.play().catch(()=>{});
+    characterImg.src = selectedCharacter;
+
+    // Show character immediately but delay pipes until sound ends
+    audio.onended = () => {
+      characterSelection.style.display = "none";
+      startGame();
+    };
+  };
+});
+
+/* ---------------------------
+   Game functions
+   --------------------------- */
+function resetGameState() {
+  x = 50;
+  y = gameCanvas.height / 2 - 30;
+  velocity = 0;
+  baseScore = 0;
+  coinCount = 0;
+  pipes = [];
+  coins = [];
+  // apply difficulty
+  pipeSpeed = DIFFICULTY[difficultySetting].pipeSpeed;
+  pipeGap = DIFFICULTY[difficultySetting].gap;
+  levelName = (difficultySetting === 'easy')? 'Easy' : (difficultySetting === 'medium')? 'Medium' : 'Hard';
+  hud.textContent = `Score: ${baseScore} | Coins: ${coinCount} | Level: ${levelName}`;
+  // spawn first pipes after a small delay frame
+  makePipe();
 }
 
-// START GAME (Pipes appear after tap audio completed)
 function startGame() {
-    gameCanvas.style.display = "block";
-    resetGame();
-    gameRunning = true;
-
-    gameCanvas.addEventListener("click", jump);
-
-    loop();
+  gameCanvas.style.display = "block";
+  backBtnGame.style.display = "block";
+  resetGameState();
+  gameRunning = true;
+  gameCanvas.addEventListener("click", jump);
+  lastFrameTime = performance.now();
+  loop();
 }
 
-// JUMP
 function jump() {
-    velocity = -8;
-    stopAllSounds();
-    document.getElementById(selectedTapSound).play();
+  velocity = -8.5;
+  stopAllSounds();
+  const tap = document.getElementById(selectedTapSound);
+  if (tap) tap.play().catch(()=>{});
+  // small immediately-visible flap effect
+  wingFlapTimer = 0.25;
 }
 
-// CREATE PIPE
+/* ---------------------------
+   Pipes & Coins
+   --------------------------- */
 function makePipe() {
-    let topHeight = Math.random() * 250 + 50;
-    let bottomY = topHeight + pipeGap;
-
-    pipes.push({
-        x: gameCanvas.width,
-        topHeight: topHeight,
-        bottomY: bottomY
-    });
+  let topHeight = Math.random() * 220 + 40;
+  let bottomY = topHeight + pipeGap;
+  pipes.push({ x: gameCanvas.width + 20, topHeight, bottomY, passed:false });
+  // also sometimes spawn a coin in the gap
+  if (Math.random() < 0.8) {
+    let coinY = topHeight + 30 + Math.random() * (pipeGap - 60);
+    coins.push({ x: gameCanvas.width + 60, y: coinY, collected:false });
+  }
 }
 
-// UPDATE GAME
-function update() {
-    velocity += gravity;
-    y += velocity;
-
-    // Move pipes
-    pipes.forEach(pipe => pipe.x -= pipeSpeed);
-
-    // Remove off-screen pipes
-    if (pipes[0].x < -pipeWidth) {
-        pipes.shift();
-        score++;
-    }
-
-    // Add new pipe
-    if (pipes[pipes.length - 1].x < 150) {
-        makePipe();
-    }
-
-    // COLLISION
-    for (let pipe of pipes) {
-        let hitX = x + 60 > pipe.x && x < pipe.x + pipeWidth;
-        if (hitX) {
-            if (y < pipe.topHeight || y + 60 > pipe.bottomY) {
-                gameOver();
-            }
-        }
-    }
-
-    // Ground hit
-    if (y > gameCanvas.height - 60) gameOver();
+/* ---------------------------
+   Collision helpers
+   --------------------------- */
+function rectsOverlap(rx, ry, rw, rh, sx, sy, sr) {
+  // circle-rect collision (for coin) and rect-rect for pipes
+  // here sr is radius (for circle), sx,sy center
+  // return true if circle intersects rect
+  let closestX = Math.max(rx, Math.min(sx, rx+rw));
+  let closestY = Math.max(ry, Math.min(sy, ry+rh));
+  let dx = sx - closestX;
+  let dy = sy - closestY;
+  return (dx*dx + dy*dy) < (sr*sr);
 }
 
-// DRAW ON SCREEN
+/* ---------------------------
+   Wing animation (visual only)
+   --------------------------- */
+let wingFlapTimer = 0; // seconds remaining for a strong flap
+function drawCharacter() {
+  // wing animation: small up-down bob and rotation based on velocity
+  let t = performance.now() / 1000;
+  let bob = Math.sin(t * 10) * 2; // subtle bob
+  if (wingFlapTimer > 0) bob *= 3;
+
+  // rotation tilt: tilt up when moving up, down when falling
+  let angle = Math.max(-0.6, Math.min(0.8, -velocity * 0.03)); // radians
+
+  // flap scale for wing effect
+  let flap = 1 + Math.sin(t * 25) * 0.05;
+  if (wingFlapTimer > 0) flap += 0.08;
+
+  // draw with rotation around center
+  let w = 60, h = 60;
+  ctx.save();
+  ctx.translate(x + w/2, y + h/2 + bob);
+  ctx.rotate(angle);
+  ctx.scale(flap, flap);
+  // draw main sprite centered
+  if (characterImg && characterImg.complete) {
+    ctx.drawImage(characterImg, -w/2, -h/2, w, h);
+  } else {
+    ctx.fillStyle = "orange";
+    ctx.fillRect(-w/2, -h/2, w, h);
+  }
+
+  // draw simple wings as triangles (visual flap)
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  let wingSpan = 28;
+  let wingFlap = Math.sin(t * 25) * 8 + (wingFlapTimer>0?12:0);
+  // left wing
+  ctx.beginPath();
+  ctx.moveTo(-w/2 + 8, 0);
+  ctx.lineTo(-w/2 - wingSpan + wingFlap, -8);
+  ctx.lineTo(-w/2 - wingSpan + wingFlap, 8);
+  ctx.fill();
+  // right wing
+  ctx.beginPath();
+  ctx.moveTo(w/2 - 8, 0);
+  ctx.lineTo(w/2 + wingSpan - wingFlap, -8);
+  ctx.lineTo(w/2 + wingSpan - wingFlap, 8);
+  ctx.fill();
+
+  ctx.restore();
+
+  // reduce flap timer
+  wingFlapTimer = Math.max(0, wingFlapTimer - frameDelta);
+}
+
+/* ---------------------------
+   Update & Draw
+   --------------------------- */
+let lastFrameTime = 0;
+let frameDelta = 0;
+function update(dt) {
+  // dt seconds assume passed
+  frameDelta = dt;
+  // physics
+  velocity += gravity;
+  y += velocity;
+
+  // move pipes and coins
+  pipes.forEach(p => p.x -= pipeSpeed);
+  coins.forEach(c => c.x -= pipeSpeed);
+
+  // clear old pipes
+  if (pipes.length && pipes[0].x < -pipeWidth - 20) {
+    pipes.shift();
+  }
+
+  // clear old coins
+  if (coins.length && coins[0].x < -50) coins.shift();
+
+  // spawn new pipes
+  if (pipes.length === 0 || pipes[pipes.length-1].x < 180) {
+    makePipe();
+  }
+
+  // check pipe pass & collision
+  pipes.forEach(pipe => {
+    if (!pipe.passed && pipe.x + pipeWidth < x) {
+      pipe.passed = true;
+      baseScore += 1;
+      // difficulty ramps gradually
+      if (baseScore % 5 === 0) {
+        pipeSpeed += 0.15; // small speed up every 5 pipes
+        pipeGap = Math.max(95, pipeGap - 5); // make gap slightly smaller but not too small
+      }
+      hud.textContent = `Score: ${baseScore} | Coins: ${coinCount} | Level: ${levelName}`;
+    }
+    // collision (character box vs pipe rects)
+    let hitX = (x + 60 > pipe.x) && (x < pipe.x + pipeWidth);
+    if (hitX) {
+      if (y < pipe.topHeight || y + 60 > pipe.bottomY) {
+        gameOver();
+      }
+    }
+  });
+
+  // coins collision
+  coins.forEach(coin => {
+    if (!coin.collected) {
+      if (rectsOverlap(coin.x - coinRadius, coin.y - coinRadius, coinRadius*2, coinRadius*2, x + 30, y + 30, 18)) {
+        coin.collected = true;
+        coinCount += 1;
+        // play coin sound (do NOT stop other sounds)
+        const cs = document.getElementById('coinSound');
+        if (cs) cs.play().catch(()=>{});
+        hud.textContent = `Score: ${baseScore} | Coins: ${coinCount} | Level: ${levelName}`;
+      }
+    }
+  });
+
+  // ground hit
+  if (y > gameCanvas.height - 60) {
+    gameOver();
+  }
+
+  // top clamp
+  if (y < -30) y = -30;
+}
+
 function draw() {
-    ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  // clear
+  ctx.clearRect(0,0,gameCanvas.width,gameCanvas.height);
 
-    // character
-    ctx.drawImage(characterImg, x, y, 60, 60);
+  // background layers
+  drawBackground(frameDelta);
 
-    // pipes
-    ctx.fillStyle = "green";
-    pipes.forEach(pipe => {
-        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
-        ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, gameCanvas.height - pipe.bottomY);
-    });
+  // draw ground
+  ctx.fillStyle = "#6b8e23";
+  ctx.fillRect(0, gameCanvas.height - 20, gameCanvas.width, 20);
 
-    // score
-    ctx.fillStyle = "black";
-    ctx.font = "22px Arial";
-    ctx.fillText("Score: " + score, 10, 25);
+  // draw pipes
+  ctx.fillStyle = "#0b7a07";
+  pipes.forEach(pipe => {
+    ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+    ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, gameCanvas.height - pipe.bottomY - 20);
+  });
+
+  // draw coins
+  coins.forEach(coin => {
+    if (!coin.collected) {
+      ctx.beginPath();
+      ctx.fillStyle = "#ffd700";
+      ctx.arc(coin.x, coin.y, coinRadius, 0, Math.PI*2);
+      ctx.fill();
+      // coin inner sparkle
+      ctx.fillStyle = "#fff7c2";
+      ctx.fillRect(coin.x - 3, coin.y - 3, 4, 4);
+    }
+  });
+
+  // draw character (with wings)
+  drawCharacter();
+
+  // HUD text drawn already in html, but draw current score on canvas as well
+  ctx.fillStyle = "#000";
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: " + baseScore, 10, 25);
+  ctx.fillText("Coins: " + coinCount, 10, 50);
 }
 
-// LOOP
-function loop() {
-    if (!gameRunning) return;
+/* ---------------------------
+   Loop & timing
+   --------------------------- */
+function loop(now) {
+  if (!gameRunning) return;
+  requestAnimationFrame(loop);
+  if (!lastFrameTime) lastFrameTime = now;
+  let dt = (now - lastFrameTime) / 1000; // seconds
+  lastFrameTime = now;
+  // cap dt
+  if (dt > 0.05) dt = 0.05;
 
-    requestAnimationFrame(loop);
-
-    update();
-    draw();
+  update(dt);
+  draw();
 }
 
-// GAME OVER
+/* ---------------------------
+   Game Over & controls
+   --------------------------- */
 function gameOver() {
-    gameRunning = false;
-
-    stopAllSounds();
-    document.getElementById(selectedFailSound).play();
-
-    document.getElementById("finalScore").innerText = "Score: " + score;
-    document.getElementById("gameOver").style.display = "flex";
+  if (!gameRunning) return;
+  gameRunning = false;
+  stopAllSounds();
+  const fail = document.getElementById(selectedFailSound);
+  if (fail) fail.play().catch(()=>{});
+  backBtnGame.style.display = "none";
+  document.getElementById("finalScore").innerText = `Score: ${baseScore} | Coins: ${coinCount}`;
+  document.getElementById("gameOver").style.display = "flex";
 }
 
-// RESTART
 document.getElementById("restartBtn").onclick = () => {
-    document.getElementById("gameOver").style.display = "none";
-    startGame();
+  document.getElementById("gameOver").style.display = "none";
+  backBtnGame.style.display = "block";
+  // keep same difficulty and character
+  resetGameState();
+  gameRunning = true;
+  lastFrameTime = performance.now();
+  loop(performance.now());
 };
-</script>
 
+// Back button (in-game) -> return to character selection
+backBtnGame.onclick = () => {
+  gameRunning = false;
+  stopAllSounds();
+  backBtnGame.style.display = "none";
+  gameCanvas.style.display = "none";
+  characterSelection.style.display = "block";
+};
+
+// Back button on Game Over -> return to character selection
+backBtnOver.onclick = () => {
+  stopAllSounds();
+  document.getElementById("gameOver").style.display = "none";
+  gameCanvas.style.display = "none";
+  backBtnGame.style.display = "none";
+  characterSelection.style.display = "block";
+};
+
+/* ---------------------------
+   Start aux variables & safe defaults
+   --------------------------- */
+let lastNow = 0;
+
+// make sure canvas focusable
+gameCanvas.tabIndex = 1000;
+</script>
 </body>
 </html>
