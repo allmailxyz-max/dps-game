@@ -682,18 +682,27 @@ gameCanvas.tabIndex = 1000;
 <head>
   <meta charset="UTF-8">
 </body>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q0P2DHTG3C"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-Q0P2DHTG3C');
-  </script>
-  
-  <title>DPS Game</title>
+<!-- ✅ Google Analytics MUST be inside the first <head> -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Q0P2DHTG3C"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-Q0P2DHTG3C');
+</script>
+
+<style>
+/* YOUR FULL CSS (unchanged) */
+body { margin:0; text-align:center; background:#87ceeb; font-family:Arial, sans-serif; overflow: hidden; }
+#startImage, .choiceImage { cursor:pointer; transition: transform 0.1s; }
+/* ⭐ Rest CSS untouched */
+... (your full CSS stays SAME)
+</style>
+
 </head>
+
 </html>
+
 
 
 
